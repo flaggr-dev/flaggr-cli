@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/flaggr-dev/flaggr-cli/internal/api"
@@ -38,7 +37,11 @@ func NewRootCmd() *cobra.Command {
 	root.PersistentFlags().BoolVar(&jsonOut, "json", false, "Output as JSON")
 
 	// Override default version template
-	root.SetVersionTemplate(fmt.Sprintf("flaggr version %s (commit %s)\n", CLIVersion, CLICommit))
+	versionLine := "flaggr version " + CLIVersion
+	if commitKnown(CLICommit) {
+		versionLine += " (commit " + CLICommit + ")"
+	}
+	root.SetVersionTemplate(versionLine + "\n")
 
 	root.AddCommand(
 		newLoginCmd(),
@@ -55,6 +58,12 @@ func NewRootCmd() *cobra.Command {
 	)
 
 	return root
+}
+
+// commitKnown reports whether commit names one: a `go install` of a tagged
+// version records none, so flaggr reports only the version.
+func commitKnown(commit string) bool {
+	return commit != "" && commit != "none"
 }
 
 func Execute(version, commit string) {

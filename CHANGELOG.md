@@ -7,7 +7,7 @@ First public release, from `github.com/flaggr-dev/flaggr-cli`. Earlier versions 
 FEATURES:
 
 * Install with the install script (`install.sh`, for macOS and Linux), from a release archive, or with `go install github.com/flaggr-dev/flaggr-cli/cmd/flaggr@latest`. Releases add Windows archives to the macOS and Linux ones, for amd64 and arm64, with `checksums.txt`; the install script checks the download against it.
-* `flaggr --version` (and `flaggr status`) report the release version, or, for a `go install` build, the module version.
+* `flaggr --version` (and `flaggr status`) report the release version, or, for a `go install` build, the module version, with the commit when Go records one or the version is a pseudo-version (`@main`, or `@latest` before a release).
 * Commands: `login`, `logout`, `status`, `projects`, `services`, `flags` (`list`, `create`, `toggle`, `delete`, `stale`), `eval` (`bool`, `string`, `number`, `config` and `stream`, over Connect-RPC), `metrics` (`flag`, `watch`, `heatmap`), `health` (`flag`, `project`), `audit` (`log`, `history`) and `export`. Every command takes `--json`.
 
 SECURITY:
