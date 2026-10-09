@@ -54,6 +54,8 @@ flaggr eval bool --key checkout-v2 --service <service-id>
 
 `flaggr login` opens your browser at flaggr.dev. Once you're signed in, choose **One project**, a project API token (read & write) for the project you pick, or **All my projects**, a [personal access token](https://flaggr.dev/docs/api/personal-access-tokens) that acts as you in every project you can access. The sign-in page posts the token to the CLI's callback on `127.0.0.1`, never in a URL, along with a one-time `state` the CLI checks. The CLI saves the token in `~/.flaggr/config.json`, readable only by you.
 
+Browser sign-in and personal access tokens need Flaggr 0.5.0 or later on the server: `flaggr status` shows its version. An older sign-in page creates a project API token named "CLI login (*date*)" and puts it in the callback URL, where your browser history keeps it, so `flaggr login` doesn't save it and tells you so in your terminal. Revoke that token in the project's **Settings → API tokens**, then create a project API token there and run `flaggr login --token fgr_...`.
+
 A **One project** token can't delete: `flaggr flags delete` gets 403 with it. For deletes, choose **All my projects**, or pass a token that has the Delete permission to `flaggr login --token`.
 
 In CI and other places without a browser, pass a token, or set `FLAGGR_API_TOKEN`, which takes precedence over the saved token:
@@ -128,6 +130,10 @@ protoc -I proto \
 
 The only difference from buf's output is the protoc version in each file's header.
 
+### Third-party notices
+
+`THIRD_PARTY_NOTICES` holds the licenses of Go and of the modules compiled into `flaggr`, and every release archive ships it. After changing dependencies, regenerate it with `make notices` (`scripts/third-party-notices.sh`): while it's out of date, CI fails and GoReleaser won't release.
+
 ### Releases
 
 Pushing a `v*` tag runs [GoReleaser](https://goreleaser.com) (`.github/workflows/release.yml`), which builds the archives and `checksums.txt` and publishes them as a GitHub release; it stamps the version and commit that `flaggr --version` prints. `make snapshot` (`goreleaser release --snapshot --clean`) builds the same archives in `dist/` without publishing anything.
@@ -138,4 +144,4 @@ Please report vulnerabilities privately: see [SECURITY.md](SECURITY.md).
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). The binaries also contain Go's standard library and other Go modules, under their own licenses: see [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES).

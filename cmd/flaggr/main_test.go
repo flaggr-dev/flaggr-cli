@@ -52,10 +52,28 @@ func TestBuildVersion(t *testing.T) {
 			wantVersion: "0.5.0", wantCommit: "abc1234",
 		},
 		{
-			name:    "go install of a tagged version reports the module version",
+			name:    "go install of a tagged version reports the module version, and no commit",
 			version: "dev", commit: "none",
 			info:        &debug.BuildInfo{Main: debug.Module{Version: "v0.5.0"}},
 			wantVersion: "0.5.0", wantCommit: "none",
+		},
+		{
+			name:    "go install of a pseudo-version reports the commit it names",
+			version: "dev", commit: "none",
+			info:        &debug.BuildInfo{Main: debug.Module{Version: "v0.0.0-20261009005306-9bc23b6b9415"}},
+			wantVersion: "0.0.0-20261009005306-9bc23b6b9415", wantCommit: "9bc23b6",
+		},
+		{
+			name:    "a pseudo-version after a pre-release",
+			version: "dev", commit: "none",
+			info:        &debug.BuildInfo{Main: debug.Module{Version: "v0.6.0-rc.1.0.20261009005306-9bc23b6b9415"}},
+			wantVersion: "0.6.0-rc.1.0.20261009005306-9bc23b6b9415", wantCommit: "9bc23b6",
+		},
+		{
+			name:    "a pre-release tag isn't a pseudo-version",
+			version: "dev", commit: "none",
+			info:        &debug.BuildInfo{Main: debug.Module{Version: "v0.6.0-rc.1"}},
+			wantVersion: "0.6.0-rc.1", wantCommit: "none",
 		},
 		{
 			name:    "a build from a git checkout reports Go's version and commit",

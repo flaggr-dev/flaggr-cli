@@ -13,7 +13,11 @@ func newStatusCmd() *cobra.Command {
 		Use:   "status",
 		Short: "Show CLI and server version, check API health",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Printf("CLI version:    %s (%s)\n", CLIVersion, CLICommit)
+			cliVersion := CLIVersion
+			if commitKnown(CLICommit) {
+				cliVersion += " (" + CLICommit + ")"
+			}
+			fmt.Printf("CLI version:    %s\n", cliVersion)
 
 			data, err := rest.Health(cmd.Context())
 			if err != nil {

@@ -85,6 +85,8 @@ fi
 tar -xzf "${tmp}/${archive}" -C "$tmp" "$BINARY" || fail "could not extract ${BINARY} from ${archive}"
 chmod 755 "${tmp}/${BINARY}"
 
+# install, not mv: mv keeps the downloaded file's owner, so a sudo install
+# would leave a binary the user can rewrite inside a root-owned directory.
 sudo=""
 if [ -d "$INSTALL_DIR" ]; then
   [ -w "$INSTALL_DIR" ] || sudo="sudo"
@@ -96,9 +98,9 @@ if [ -n "$sudo" ]; then
     fail "can't write to ${INSTALL_DIR}: set FLAGGR_INSTALL_DIR to a directory you can write to"
   echo "Installing to ${INSTALL_DIR} (requires sudo)..."
   sudo mkdir -p "$INSTALL_DIR"
-  sudo mv "${tmp}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
+  sudo install -m 0755 "${tmp}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
 else
-  mv "${tmp}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
+  install -m 0755 "${tmp}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
 fi
 
 echo ""

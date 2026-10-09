@@ -47,8 +47,46 @@ jobs:
       - name: Unit tests
         run: go test -race -count=1 -cover ./...
 
-      - name: install.sh is POSIX sh
-        run: shellcheck --shell=sh install.sh
+      - name: The shell scripts are POSIX sh
+        run: shellcheck --shell=sh install.sh scripts/third-party-notices.sh
+
+      # The release archives ship THIRD_PARTY_NOTICES: the licenses of Go and
+      # of every module compiled into flaggr.
+      - name: THIRD_PARTY_NOTICES is up to date
+        run: |
+          make notices
+          git diff --exit-code -- THIRD_PARTY_NOTICES || {
+            echo "THIRD_PARTY_NOTICES is out of date: run 'make notices' and commit the result."
+            exit 1
+          }
+
+  oldest-go:
+    name: Build and unit tests on the oldest Go go.mod allows
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Build with the Go installed below, not the newer toolchain go.mod names.
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # go.mod's go line is the oldest Go that builds flaggr (README: Install).
+      - name: Read the go line
+        id: go-line
+        run: echo "version=$(sed -n 's/^go //p' go.mod)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: ${{ steps.go-line.outputs.version }}
+          cache: true
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Unit tests
+        run: go test -race -count=1 ./...
 
   vulncheck:
     name: Known vulnerabilities
