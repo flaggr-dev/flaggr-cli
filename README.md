@@ -54,6 +54,8 @@ flaggr eval bool --key checkout-v2 --service <service-id>
 
 `flaggr login` opens your browser at flaggr.dev. Once you're signed in, choose **One project**, a project API token (read & write) for the project you pick, or **All my projects**, a [personal access token](https://flaggr.dev/docs/api/personal-access-tokens) that acts as you in every project you can access. The sign-in page posts the token to the CLI's callback on `127.0.0.1`, never in a URL, along with a one-time `state` the CLI checks. The CLI saves the token in `~/.flaggr/config.json`, readable only by you.
 
+Browser sign-in and personal access tokens need Flaggr 0.5.0 or later on the server: `flaggr status` shows its version. An older sign-in page creates a project API token named "CLI login (*date*)" and puts it in the callback URL, where your browser history keeps it, so `flaggr login` doesn't save it and tells you so in your terminal. Revoke that token in the project's **Settings → API tokens**, then create a project API token there and run `flaggr login --token fgr_...`.
+
 A **One project** token can't delete: `flaggr flags delete` gets 403 with it. For deletes, choose **All my projects**, or pass a token that has the Delete permission to `flaggr login --token`.
 
 In CI and other places without a browser, pass a token, or set `FLAGGR_API_TOKEN`, which takes precedence over the saved token:

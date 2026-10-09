@@ -7,9 +7,11 @@ import (
 	"encoding/base64"
 	"fmt"
 	"html"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
@@ -101,6 +103,18 @@ const maxCallbackBodyBytes = 16 << 10
 const tokenInURLError = "the sign-in page sent the token in the URL, where your browser history keeps it, so it was not saved. " +
 	"Revoke it in Flaggr (Profile → Personal access tokens, or the project's API tokens), then create a token there and run `flaggr login --token <token>`"
 
+// olderSignInPageNotice is printed, once, when a GET to the callback carries
+// a token and no state. Flaggr servers before 0.5.0 send the token that way:
+// their sign-in page creates a project API token named "CLI login (<date>)"
+// and puts it in the callback URL. Any web page can send the same request,
+// so the token isn't used and the login keeps waiting; the notice tells the
+// user what to revoke and how to log in to such a server.
+const olderSignInPageNotice = `The sign-in page sent a token in the callback URL, which your browser history keeps,
+without this login's state: Flaggr servers before 0.5.0 do that (flaggr status shows the server's version).
+The token wasn't saved. Revoke it in the project's Settings → API tokens (it's named "CLI login (<date>)"),
+then create a project API token there and run: flaggr login --token <token>
+Still waiting for a sign-in that matches this login (press Ctrl-C to stop).`
+
 // cliAuthURL is the browser sign-in page for a login listening on port.
 func cliAuthURL(apiURL string, port int, state string) string {
 	q := url.Values{}
@@ -117,9 +131,11 @@ func cliAuthURL(apiURL string, port int, state string) string {
 // is delivered on results (buffered, so it never blocks); later ones get a
 // 409. A GET carrying a token is refused — and fails the login when it also
 // carries the state, since only a sign-in page that knows the state (an
-// older Flaggr server) sends one.
-func newCallbackHandler(state string, results chan<- callbackResult) http.Handler {
-	var once sync.Once
+// older Flaggr server) sends one. A GET carrying a token and no state, as a
+// sign-in page from before 0.5.0 sends, puts olderSignInPageNotice on
+// notices, once, without a blocking send; the login keeps waiting.
+func newCallbackHandler(state string, results chan<- callbackResult, notices chan<- string) http.Handler {
+	var once, noticeOnce sync.Once
 	deliver := func(result callbackResult) bool {
 		delivered := false
 		once.Do(func() {
@@ -127,6 +143,14 @@ func newCallbackHandler(state string, results chan<- callbackResult) http.Handle
 			delivered = true
 		})
 		return delivered
+	}
+	notify := func(notice string) {
+		noticeOnce.Do(func() {
+			select {
+			case notices <- notice:
+			default:
+			}
+		})
 	}
 
 	mux := http.NewServeMux()
@@ -149,6 +173,11 @@ func newCallbackHandler(state string, results chan<- callbackResult) http.Handle
 			}
 			w.Header().Set("Allow", http.MethodPost)
 			w.WriteHeader(http.StatusMethodNotAllowed)
+			if q.Get("token") != "" && q.Get("state") == "" {
+				notify(olderSignInPageNotice)
+				fmt.Fprint(w, successPage("Not saved: this sign-in page is older than your flaggr CLI and sent the token in the page address, which your browser history keeps. Revoke it in Flaggr; your terminal says how to log in.", false))
+				return
+			}
 			fmt.Fprint(w, successPage("This sign-in doesn't match the flaggr login waiting in your terminal, so it was ignored.", false))
 			return
 		}
@@ -206,9 +235,10 @@ func browserAuthFlow(cfg *config.Config) error {
 	port := listener.Addr().(*net.TCPAddr).Port
 
 	resultCh := make(chan callbackResult, 1)
+	noticeCh := make(chan string, 1)
 
 	server := &http.Server{
-		Handler:           newCallbackHandler(state, resultCh),
+		Handler:           newCallbackHandler(state, resultCh, noticeCh),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	go func() {
@@ -229,40 +259,51 @@ func browserAuthFlow(cfg *config.Config) error {
 	fmt.Println("Waiting for authentication...")
 
 	// Wait for the callback or timeout
-	select {
-	case result := <-resultCh:
-		// Shut down the local server
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		_ = server.Shutdown(ctx)
+	result, ok := awaitCallback(resultCh, noticeCh, time.After(5*time.Minute), os.Stderr)
 
-		if result.Error != "" {
-			return fmt.Errorf("authentication failed: %s", result.Error)
-		}
+	// Shut down the local server
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_ = server.Shutdown(ctx)
 
-		cfg.APIToken = result.Token
-		if result.ProjectID != "" {
-			cfg.DefaultProjectID = result.ProjectID
-		}
-		if err := config.Save(cfg); err != nil {
-			return fmt.Errorf("failed to save credentials: %w", err)
-		}
-
-		fmt.Println()
-		output.Success("You are now logged in!")
-		fmt.Printf("  Credentials saved to %s\n", config.Path())
-		if result.ProjectID != "" {
-			fmt.Printf("  Default project: %s\n", result.ProjectID)
-		}
-		fmt.Println()
-		fmt.Println("  Try: flaggr status")
-		return nil
-
-	case <-time.After(5 * time.Minute):
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		_ = server.Shutdown(ctx)
+	if !ok {
 		return fmt.Errorf("authentication timed out — run `flaggr login` again")
+	}
+	if result.Error != "" {
+		return fmt.Errorf("authentication failed: %s", result.Error)
+	}
+
+	cfg.APIToken = result.Token
+	if result.ProjectID != "" {
+		cfg.DefaultProjectID = result.ProjectID
+	}
+	if err := config.Save(cfg); err != nil {
+		return fmt.Errorf("failed to save credentials: %w", err)
+	}
+
+	fmt.Println()
+	output.Success("You are now logged in!")
+	fmt.Printf("  Credentials saved to %s\n", config.Path())
+	if result.ProjectID != "" {
+		fmt.Printf("  Default project: %s\n", result.ProjectID)
+	}
+	fmt.Println()
+	fmt.Println("  Try: flaggr status")
+	return nil
+}
+
+// awaitCallback waits for the callback's result, writing each notice to w as
+// it arrives, and reports false when timeout fires first.
+func awaitCallback(results <-chan callbackResult, notices <-chan string, timeout <-chan time.Time, w io.Writer) (callbackResult, bool) {
+	for {
+		select {
+		case notice := <-notices:
+			fmt.Fprintf(w, "\n%s\n", notice)
+		case result := <-results:
+			return result, true
+		case <-timeout:
+			return callbackResult{}, false
+		}
 	}
 }
 

@@ -113,7 +113,7 @@ func TestCallbackRefusesATokenInTheURL(t *testing.T) {
 
 	// Without the state: ignored, and the login keeps waiting.
 	results := make(chan callbackResult, 1)
-	h := newCallbackHandler(state, results)
+	h := newCallbackHandler(state, results, nil)
 	for _, q := range []url.Values{
 		{"token": {"fgp_attacker"}},
 		{"token": {"fgp_attacker"}, "state": {"not-the-state"}},
@@ -150,10 +150,103 @@ func TestCallbackRefusesATokenInTheURL(t *testing.T) {
 	}
 }
 
+// Flaggr servers before 0.5.0 send the token they create in the callback URL,
+// with no state. The CLI can't tell that from another web page, so it keeps
+// waiting, but says once, in the terminal, what happened and what to do.
+func TestCallbackTellsOnceAboutAnOlderSignInPage(t *testing.T) {
+	state, _ := newLoginState()
+	results := make(chan callbackResult, 1)
+	notices := make(chan string, 1)
+	h := newCallbackHandler(state, results, notices)
+
+	older := url.Values{"token": {"fgr_in_history"}, "project_id": {"proj-1"}}
+	rec := serveCallbackGet(h, older)
+	if rec.Code != http.StatusMethodNotAllowed || rec.Header().Get("Allow") != http.MethodPost {
+		t.Errorf("GET from an older sign-in page: status %d Allow %q, want 405 POST", rec.Code, rec.Header().Get("Allow"))
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "older than your flaggr CLI") || !strings.Contains(body, "Revoke it") {
+		t.Errorf("page doesn't say the sign-in page is older or that the token must be revoked: %s", body)
+	}
+	if strings.Contains(body, "fgr_in_history") {
+		t.Error("the page echoed the token")
+	}
+	select {
+	case notice := <-notices:
+		if notice != olderSignInPageNotice {
+			t.Errorf("notice %q, want olderSignInPageNotice", notice)
+		}
+	default:
+		t.Fatal("no notice for the terminal")
+	}
+	for _, want := range []string{"Revoke it", "CLI login (<date>)", "flaggr login --token <token>", "flaggr status", "Still waiting"} {
+		if !strings.Contains(olderSignInPageNotice, want) {
+			t.Errorf("notice lacks %q", want)
+		}
+	}
+
+	// Once per login: repeats (or a page spamming the port) add nothing.
+	serveCallbackGet(h, older)
+	serveCallbackGet(h, url.Values{"token": {"fgr_other"}})
+	select {
+	case notice := <-notices:
+		t.Errorf("a second notice: %q", notice)
+	default:
+	}
+
+	// A state that isn't this login's isn't an older sign-in page: no notice.
+	other := make(chan string, 1)
+	rec = serveCallbackGet(newCallbackHandler(state, make(chan callbackResult, 1), other),
+		url.Values{"token": {"fgr_x"}, "state": {"not-the-state"}})
+	if strings.Contains(rec.Body.String(), "older than") {
+		t.Errorf("a GET with another state got the older-page message: %s", rec.Body.String())
+	}
+	select {
+	case notice := <-other:
+		t.Errorf("a GET with another state got a notice: %q", notice)
+	default:
+	}
+
+	// Nothing was delivered, and the real callback still completes the login.
+	noResult(t, results)
+	if rec := serveCallback(h, url.Values{"token": {"fgp_real"}, "state": {state}}); rec.Code != http.StatusOK {
+		t.Fatalf("matching callback: status %d, want 200", rec.Code)
+	}
+	if r := recv(t, results); r.Token != "fgp_real" || r.Error != "" {
+		t.Errorf("delivered %+v, want the posted token", r)
+	}
+}
+
+func TestAwaitCallbackPrintsNoticesAndKeepsWaiting(t *testing.T) {
+	results := make(chan callbackResult, 1)
+	notices := make(chan string, 1)
+	notices <- "older sign-in page"
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		results <- callbackResult{Token: "fgp_real"}
+	}()
+
+	var out strings.Builder
+	result, ok := awaitCallback(results, notices, time.After(5*time.Second), &out)
+	if !ok || result.Token != "fgp_real" {
+		t.Fatalf("awaitCallback = (%+v, %v), want the token", result, ok)
+	}
+	if out.String() != "\nolder sign-in page\n" {
+		t.Errorf("printed %q, want the notice", out.String())
+	}
+
+	// No callback before the timeout: not ok.
+	timeout := make(chan time.Time, 1)
+	timeout <- time.Now()
+	if result, ok := awaitCallback(make(chan callbackResult), make(chan string), timeout, &out); ok {
+		t.Errorf("awaitCallback after the timeout = (%+v, true), want false", result)
+	}
+}
+
 func TestCallbackReadsOnlyThePostedForm(t *testing.T) {
 	state, _ := newLoginState()
 	results := make(chan callbackResult, 1)
-	h := newCallbackHandler(state, results)
+	h := newCallbackHandler(state, results, nil)
 
 	// The state (and token) in the query of a POST don't count.
 	rec := httptest.NewRecorder()
@@ -193,7 +286,7 @@ func TestCallbackReadsOnlyThePostedForm(t *testing.T) {
 func TestCallbackIgnoresRequestsWithoutTheState(t *testing.T) {
 	state, _ := newLoginState()
 	results := make(chan callbackResult, 1)
-	h := newCallbackHandler(state, results)
+	h := newCallbackHandler(state, results, nil)
 
 	for _, q := range []url.Values{
 		{"token": {"fgr_attacker"}, "project_id": {"evil"}},
@@ -225,7 +318,7 @@ func TestCallbackIgnoresRequestsWithoutTheState(t *testing.T) {
 func TestCallbackErrorWithStateFailsTheLoginAndIsEscaped(t *testing.T) {
 	state, _ := newLoginState()
 	results := make(chan callbackResult, 1)
-	h := newCallbackHandler(state, results)
+	h := newCallbackHandler(state, results, nil)
 
 	rec := serveCallback(h, url.Values{"error": {"<script>alert(1)</script>"}, "state": {state}})
 	if rec.Code != http.StatusBadRequest {
@@ -246,7 +339,7 @@ func TestCallbackErrorWithStateFailsTheLoginAndIsEscaped(t *testing.T) {
 func TestCallbackWithoutTokenFails(t *testing.T) {
 	state, _ := newLoginState()
 	results := make(chan callbackResult, 1)
-	rec := serveCallback(newCallbackHandler(state, results), url.Values{"state": {state}})
+	rec := serveCallback(newCallbackHandler(state, results, nil), url.Values{"state": {state}})
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("status %d, want 400", rec.Code)
 	}
@@ -258,7 +351,7 @@ func TestCallbackWithoutTokenFails(t *testing.T) {
 func TestSecondMatchingCallbackDoesNotBlock(t *testing.T) {
 	state, _ := newLoginState()
 	results := make(chan callbackResult, 1)
-	h := newCallbackHandler(state, results)
+	h := newCallbackHandler(state, results, nil)
 
 	first := serveCallback(h, url.Values{"token": {"fgr_one"}, "state": {state}})
 	if first.Code != http.StatusOK {

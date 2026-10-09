@@ -14,6 +14,7 @@ SECURITY:
 
 * `flaggr login` sends a one-time `state` to the sign-in page and accepts only the callback that returns it, so another web page can't log the CLI into a different account through its localhost port.
 * The sign-in page hands the token to the CLI's localhost callback in a form POST, never in a URL, where browser history would keep it. A token sent in the callback URL is refused and not saved: revoke it in Flaggr.
+* A sign-in page from before Flaggr 0.5.0 puts its token in the callback URL without a `state`. Since any web page can send that request, it doesn't end the login: the CLI keeps waiting, and says once, in the terminal, which token to revoke and to use `flaggr login --token`.
 * `flaggr logout` says the token stays valid until it expires or you revoke it, and where to revoke it, and warns while `FLAGGR_API_TOKEN` is set.
 
 NOTES:
