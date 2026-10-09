@@ -1,0 +1,239 @@
+// Flaggr Streaming Protocol Schema
+// Protocol Buffers v3
+//
+// This schema defines the wire format for real-time flag updates via gRPC streaming.
+// Supports both server-side and bidirectional streaming patterns.
+
+syntax = "proto3";
+
+package flaggr.v1;
+
+option go_package = "github.com/flaggr-dev/flaggr-cli/internal/flaggrv1";
+option java_package = "dev.flaggr.proto.v1";
+option java_multiple_files = true;
+
+import "flags.proto";
+import "evaluation.proto";
+
+// Event type for flag updates
+enum FlagEventType {
+  FLAG_EVENT_TYPE_UNSPECIFIED = 0;
+
+  // Flag was created
+  FLAG_EVENT_TYPE_CREATED = 1;
+
+  // Flag was updated
+  FLAG_EVENT_TYPE_UPDATED = 2;
+
+  // Flag was deleted
+  FLAG_EVENT_TYPE_DELETED = 3;
+
+  // Flag was toggled (enabled/disabled)
+  FLAG_EVENT_TYPE_TOGGLED = 4;
+
+  // Full configuration sync
+  FLAG_EVENT_TYPE_SYNC = 5;
+
+  // Heartbeat to keep connection alive
+  FLAG_EVENT_TYPE_HEARTBEAT = 6;
+
+  // Provider ready signal
+  FLAG_EVENT_TYPE_PROVIDER_READY = 7;
+
+  // Provider error signal
+  FLAG_EVENT_TYPE_PROVIDER_ERROR = 8;
+}
+
+// Request to subscribe to flag updates
+message StreamFlagsRequest {
+  // Service ID to subscribe to
+  string service_id = 1;
+
+  // Environment to subscribe to
+  Environment environment = 2;
+
+  // Specific flag keys to watch (empty = all flags)
+  repeated string flag_keys = 3;
+
+  // Last known configuration version (for delta sync)
+  string last_known_version = 4;
+
+  // Client identifier for connection tracking
+  string client_id = 5;
+
+  // API token for authentication
+  string api_token = 6;
+}
+
+// Flag update event sent to clients
+message FlagUpdate {
+  // Event type
+  FlagEventType event_type = 1;
+
+  // Flag key that was updated
+  string flag_key = 2;
+
+  // Full flag configuration (for CREATE/UPDATE events)
+  Flag flag = 3;
+
+  // Timestamp of the event
+  string timestamp = 4;
+
+  // New configuration version
+  string config_version = 5;
+
+  // Error message (for ERROR events)
+  string error_message = 6;
+}
+
+// Full configuration sync message
+message ConfigurationSync {
+  // Full flag configuration
+  FlagConfiguration configuration = 1;
+
+  // Timestamp of sync
+  string timestamp = 2;
+}
+
+// Request for bidirectional sync
+message SyncRequest {
+  // Type of sync request
+  oneof request {
+    // Initial subscription request
+    StreamFlagsRequest subscribe = 1;
+
+    // Acknowledge receipt of update
+    AcknowledgeUpdate ack = 2;
+
+    // Request full configuration sync
+    RequestSync request_sync = 3;
+
+    // Client heartbeat
+    ClientHeartbeat heartbeat = 4;
+  }
+}
+
+// Acknowledge update receipt
+message AcknowledgeUpdate {
+  // Configuration version being acknowledged
+  string config_version = 1;
+
+  // Flag keys successfully applied
+  repeated string applied_flags = 2;
+}
+
+// Request for full configuration sync
+message RequestSync {
+  // Last known version (for delta sync)
+  string last_known_version = 1;
+}
+
+// Client heartbeat message
+message ClientHeartbeat {
+  // Client timestamp
+  string timestamp = 1;
+
+  // Active flag keys in client cache
+  repeated string cached_flags = 2;
+}
+
+// Response for bidirectional sync
+message SyncResponse {
+  // Type of sync response
+  oneof response {
+    // Flag update event
+    FlagUpdate update = 1;
+
+    // Full configuration sync
+    ConfigurationSync sync = 2;
+
+    // Server heartbeat
+    ServerHeartbeat heartbeat = 3;
+
+    // Error response
+    StreamError error = 4;
+  }
+}
+
+// Server heartbeat message
+message ServerHeartbeat {
+  // Server timestamp
+  string timestamp = 1;
+
+  // Current configuration version
+  string config_version = 2;
+
+  // Server instance identifier
+  string server_id = 3;
+}
+
+// Stream error message
+message StreamError {
+  // Error code
+  string code = 1;
+
+  // Error message
+  string message = 2;
+
+  // Whether client should reconnect
+  bool should_reconnect = 3;
+
+  // Recommended retry delay in milliseconds
+  uint32 retry_delay_ms = 4;
+}
+
+// Connection metadata for monitoring
+message ConnectionMetadata {
+  // Unique connection identifier
+  string connection_id = 1;
+
+  // Client identifier
+  string client_id = 2;
+
+  // Service ID being watched
+  string service_id = 3;
+
+  // Environment being watched
+  Environment environment = 4;
+
+  // Connection established timestamp
+  string connected_at = 5;
+
+  // Last activity timestamp
+  string last_activity_at = 6;
+
+  // Number of updates sent
+  uint64 updates_sent = 7;
+}
+
+// Flag streaming service
+service FlagStreamService {
+  // Server-side streaming: Subscribe to flag updates
+  rpc StreamFlags(StreamFlagsRequest) returns (stream FlagUpdate);
+
+  // Bidirectional streaming: Sync flags with acknowledgments
+  rpc SyncFlags(stream SyncRequest) returns (stream SyncResponse);
+
+  // Get current configuration (unary, for initial load)
+  rpc GetConfiguration(StreamFlagsRequest) returns (ConfigurationSync);
+}
+
+// Provider metadata for OFREP compatibility
+message ProviderMetadata {
+  // Provider name
+  string name = 1;
+
+  // Provider version
+  string version = 2;
+
+  // Supported capabilities
+  repeated string capabilities = 3;
+}
+
+// Metadata request
+message GetMetadataRequest {}
+
+// Metadata response
+message GetMetadataResponse {
+  ProviderMetadata provider = 1;
+}

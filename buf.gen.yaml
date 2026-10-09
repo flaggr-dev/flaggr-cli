@@ -1,0 +1,14 @@
+# Generates internal/flaggrv1 (messages) and internal/flaggrv1/flaggrv1connect
+# (Connect clients) from proto/: run `buf generate` (or `make generate`).
+# The plugin versions are pinned so the output matches what's committed.
+version: v2
+clean: true
+plugins:
+  - remote: buf.build/protocolbuffers/go:v1.36.11
+    out: internal/flaggrv1
+    opt:
+      - paths=source_relative
+  - remote: buf.build/connectrpc/go:v1.20.0
+    out: internal/flaggrv1
+    opt:
+      - paths=source_relative

@@ -1,0 +1,231 @@
+// Flaggr Evaluation Protocol Schema
+// Protocol Buffers v3
+//
+// This schema defines the wire format for flag evaluation requests and responses.
+// Compatible with OFREP (OpenFeature Remote Evaluation Protocol).
+
+syntax = "proto3";
+
+package flaggr.v1;
+
+option go_package = "github.com/flaggr-dev/flaggr-cli/internal/flaggrv1";
+option java_package = "dev.flaggr.proto.v1";
+option java_multiple_files = true;
+
+import "flags.proto";
+
+// Evaluation context containing user/request attributes
+message EvaluationContext {
+  // Primary identifier for targeting (e.g., user ID)
+  string targeting_key = 1;
+
+  // String attributes
+  map<string, string> string_attributes = 2;
+
+  // Number attributes
+  map<string, double> number_attributes = 3;
+
+  // Boolean attributes
+  map<string, bool> bool_attributes = 4;
+
+  // Timestamp when context was created
+  string timestamp = 5;
+}
+
+// Reason for the evaluation result
+enum EvaluationReason {
+  EVALUATION_REASON_UNSPECIFIED = 0;
+
+  // Flag was evaluated statically (no dynamic targeting)
+  EVALUATION_REASON_STATIC = 1;
+
+  // Default value was used (flag disabled or not found)
+  EVALUATION_REASON_DEFAULT = 2;
+
+  // A targeting rule matched
+  EVALUATION_REASON_TARGETING_MATCH = 3;
+
+  // Percentage-based split
+  EVALUATION_REASON_SPLIT = 4;
+
+  // Value from cache
+  EVALUATION_REASON_CACHED = 5;
+
+  // Flag not found
+  EVALUATION_REASON_FLAG_NOT_FOUND = 6;
+
+  // Error during evaluation
+  EVALUATION_REASON_ERROR = 7;
+
+  // Flag is disabled
+  EVALUATION_REASON_DISABLED = 8;
+}
+
+// Error codes for failed evaluations
+enum EvaluationErrorCode {
+  EVALUATION_ERROR_CODE_UNSPECIFIED = 0;
+  EVALUATION_ERROR_CODE_PROVIDER_NOT_READY = 1;
+  EVALUATION_ERROR_CODE_FLAG_NOT_FOUND = 2;
+  EVALUATION_ERROR_CODE_PARSE_ERROR = 3;
+  EVALUATION_ERROR_CODE_TYPE_MISMATCH = 4;
+  EVALUATION_ERROR_CODE_GENERAL = 5;
+  EVALUATION_ERROR_CODE_INVALID_CONTEXT = 6;
+}
+
+// Request to evaluate a single flag
+message EvaluateFlagRequest {
+  // Flag key to evaluate
+  string flag_key = 1;
+
+  // Evaluation context
+  EvaluationContext context = 2;
+
+  // Default value to return if evaluation fails
+  Value default_value = 3;
+
+  // Service ID for scoping
+  string service_id = 4;
+
+  // Environment
+  Environment environment = 5;
+}
+
+// Response from single flag evaluation
+message EvaluateFlagResponse {
+  // Flag key that was evaluated
+  string flag_key = 1;
+
+  // Evaluated value
+  Value value = 2;
+
+  // Variant name if applicable
+  string variant = 3;
+
+  // Reason for this evaluation result
+  EvaluationReason reason = 4;
+
+  // Error code if evaluation failed
+  EvaluationErrorCode error_code = 5;
+
+  // Error message if evaluation failed
+  string error_message = 6;
+
+  // Additional metadata
+  map<string, string> metadata = 7;
+
+  // Evaluation timestamp
+  string evaluated_at = 8;
+
+  // Flag version used for this evaluation
+  uint64 flag_version = 9;
+}
+
+// Request to evaluate multiple flags
+message BulkEvaluateFlagsRequest {
+  // Flag keys to evaluate (empty = all flags)
+  repeated string flag_keys = 1;
+
+  // Evaluation context
+  EvaluationContext context = 2;
+
+  // Service ID for scoping
+  string service_id = 3;
+
+  // Environment
+  Environment environment = 4;
+}
+
+// Response from bulk flag evaluation
+message BulkEvaluateFlagsResponse {
+  // Map of flag key to evaluation result
+  map<string, EvaluateFlagResponse> flags = 1;
+
+  // Total flags evaluated
+  uint32 total = 2;
+
+  // Evaluation timestamp
+  string evaluated_at = 3;
+}
+
+// Boolean evaluation shorthand
+message ResolveBooleanRequest {
+  string flag_key = 1;
+  bool default_value = 2;
+  EvaluationContext context = 3;
+  string service_id = 4;
+}
+
+message ResolveBooleanResponse {
+  bool value = 1;
+  string variant = 2;
+  EvaluationReason reason = 3;
+  EvaluationErrorCode error_code = 4;
+  string error_message = 5;
+  map<string, string> metadata = 6;
+}
+
+// String evaluation shorthand
+message ResolveStringRequest {
+  string flag_key = 1;
+  string default_value = 2;
+  EvaluationContext context = 3;
+  string service_id = 4;
+}
+
+message ResolveStringResponse {
+  string value = 1;
+  string variant = 2;
+  EvaluationReason reason = 3;
+  EvaluationErrorCode error_code = 4;
+  string error_message = 5;
+  map<string, string> metadata = 6;
+}
+
+// Number evaluation shorthand
+message ResolveNumberRequest {
+  string flag_key = 1;
+  double default_value = 2;
+  EvaluationContext context = 3;
+  string service_id = 4;
+}
+
+message ResolveNumberResponse {
+  double value = 1;
+  string variant = 2;
+  EvaluationReason reason = 3;
+  EvaluationErrorCode error_code = 4;
+  string error_message = 5;
+  map<string, string> metadata = 6;
+}
+
+// Object evaluation shorthand
+message ResolveObjectRequest {
+  string flag_key = 1;
+  string default_value = 2;  // JSON string
+  EvaluationContext context = 3;
+  string service_id = 4;
+}
+
+message ResolveObjectResponse {
+  string value = 1;  // JSON string
+  string variant = 2;
+  EvaluationReason reason = 3;
+  EvaluationErrorCode error_code = 4;
+  string error_message = 5;
+  map<string, string> metadata = 6;
+}
+
+// Flag evaluation service (unary RPCs)
+service EvaluationService {
+  // Evaluate a single flag
+  rpc EvaluateFlag(EvaluateFlagRequest) returns (EvaluateFlagResponse);
+
+  // Evaluate multiple flags
+  rpc BulkEvaluateFlags(BulkEvaluateFlagsRequest) returns (BulkEvaluateFlagsResponse);
+
+  // Type-specific evaluation methods
+  rpc ResolveBoolean(ResolveBooleanRequest) returns (ResolveBooleanResponse);
+  rpc ResolveString(ResolveStringRequest) returns (ResolveStringResponse);
+  rpc ResolveNumber(ResolveNumberRequest) returns (ResolveNumberResponse);
+  rpc ResolveObject(ResolveObjectRequest) returns (ResolveObjectResponse);
+}

@@ -1,0 +1,6 @@
+# The .proto sources of the Connect-RPC API the CLI calls, copied from the
+# Flaggr platform (which keeps the full API): flags.proto, evaluation.proto
+# (EvaluationService) and streaming.proto (FlagStreamService).
+version: v2
+modules:
+  - path: proto

@@ -1,0 +1,58 @@
+# Pushing a v* tag builds flaggr with GoReleaser (.github/workflows/release.yml)
+# and publishes a GitHub release: an archive for each OS and architecture
+# below, and checksums.txt with their SHA-256 sums, which install.sh checks.
+# Docs: https://goreleaser.com
+version: 2
+
+project_name: flaggr
+
+builds:
+  - main: ./cmd/flaggr
+    binary: flaggr
+    env:
+      # Static binaries, with no system libraries to install.
+      - CGO_ENABLED=0
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    flags:
+      - -trimpath
+    # cmd/flaggr/main.go declares version and commit; `flaggr --version`
+    # prints them.
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Version }}
+      - -X main.commit={{ .ShortCommit }}
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  # install.sh downloads flaggr_<version>_<os>_<arch>.tar.gz.
+  - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+release:
+  github:
+    owner: flaggr-dev
+    name: flaggr-cli
+  draft: false
+  # A tag with a pre-release suffix (v0.6.0-rc.1) makes a pre-release, which
+  # install.sh and releases/latest skip.
+  prerelease: auto
+  footer: |
+    See the [changelog](https://github.com/flaggr-dev/flaggr-cli/blob/{{ .Tag }}/CHANGELOG.md) and the [CLI documentation](https://flaggr.dev/docs/getting-started/cli).
+
+changelog:
+  disable: true

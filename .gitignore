@@ -1,0 +1,12 @@
+# Build output
+/flaggr
+/flaggr.exe
+/dist/
+
+# Test binaries and coverage output
+*.test
+*.out
+coverage.*
+
+.env
+.DS_Store

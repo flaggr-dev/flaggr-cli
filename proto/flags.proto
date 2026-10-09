@@ -1,0 +1,268 @@
+// Flaggr Flag Definition Schema
+// Protocol Buffers v3
+//
+// This schema defines the wire format for feature flag configurations.
+// Used for efficient serialization in cache, gRPC streaming, and file storage.
+
+syntax = "proto3";
+
+package flaggr.v1;
+
+option go_package = "github.com/flaggr-dev/flaggr-cli/internal/flaggrv1";
+option java_package = "dev.flaggr.proto.v1";
+option java_multiple_files = true;
+
+// Flag type enumeration
+enum FlagType {
+  FLAG_TYPE_UNSPECIFIED = 0;
+  FLAG_TYPE_BOOLEAN = 1;
+  FLAG_TYPE_STRING = 2;
+  FLAG_TYPE_NUMBER = 3;
+  FLAG_TYPE_OBJECT = 4;
+}
+
+// Environment enumeration
+enum Environment {
+  ENVIRONMENT_UNSPECIFIED = 0;
+  ENVIRONMENT_DEVELOPMENT = 1;
+  ENVIRONMENT_STAGING = 2;
+  ENVIRONMENT_PRODUCTION = 3;
+}
+
+// Condition operator for targeting rules
+enum ConditionOperator {
+  CONDITION_OPERATOR_UNSPECIFIED = 0;
+  CONDITION_OPERATOR_EQUALS = 1;
+  CONDITION_OPERATOR_NOT_EQUALS = 2;
+  CONDITION_OPERATOR_IN = 3;
+  CONDITION_OPERATOR_NOT_IN = 4;
+  CONDITION_OPERATOR_CONTAINS = 5;
+  CONDITION_OPERATOR_STARTS_WITH = 6;
+  CONDITION_OPERATOR_ENDS_WITH = 7;
+  CONDITION_OPERATOR_GREATER_THAN = 8;
+  CONDITION_OPERATOR_LESS_THAN = 9;
+  CONDITION_OPERATOR_EXISTS = 10;
+  CONDITION_OPERATOR_NOT_EXISTS = 11;
+  CONDITION_OPERATOR_REGEX = 12;
+  CONDITION_OPERATOR_GREATER_THAN_OR_EQUAL = 13;
+  CONDITION_OPERATOR_LESS_THAN_OR_EQUAL = 14;
+  CONDITION_OPERATOR_BEFORE = 15;
+  CONDITION_OPERATOR_AFTER = 16;
+  CONDITION_OPERATOR_IN_COHORT = 17;
+  CONDITION_OPERATOR_NOT_IN_COHORT = 18;
+}
+
+// Logical operator for combining conditions
+enum LogicalOperator {
+  LOGICAL_OPERATOR_UNSPECIFIED = 0;
+  LOGICAL_OPERATOR_AND = 1;
+  LOGICAL_OPERATOR_OR = 2;
+}
+
+// Generic value that can hold different types
+message Value {
+  oneof kind {
+    bool bool_value = 1;
+    string string_value = 2;
+    double number_value = 3;
+    string json_value = 4;  // Serialized JSON for object types
+  }
+}
+
+// Array of values for 'in' and 'not_in' operators
+message ValueList {
+  repeated Value values = 1;
+}
+
+// Condition for targeting rules
+message Condition {
+  // Property name to check in evaluation context
+  string property = 1;
+
+  // Operator to use for comparison
+  ConditionOperator operator = 2;
+
+  // Value to compare against
+  oneof compare_value {
+    Value single_value = 3;
+    ValueList value_list = 4;
+  }
+
+  // Cohort identifier for cohort membership operators.
+  string cohort_id = 5;
+}
+
+// Group of conditions combined with AND logic within the group
+message ConditionGroup {
+  // Conditions within this group (AND logic)
+  repeated Condition conditions = 1;
+}
+
+// Targeting rule for conditional flag evaluation
+message TargetingRule {
+  // Unique identifier for the rule
+  string id = 1;
+
+  // List of conditions that must be satisfied (flat, combined by condition_operator)
+  repeated Condition conditions = 2;
+
+  // How to combine conditions (default: AND)
+  LogicalOperator condition_operator = 3;
+
+  // Variant to serve if rule matches
+  string variant = 4;
+
+  // Direct value to serve if rule matches (alternative to variant)
+  Value value = 5;
+
+  // Condition groups for complex OR logic (groups combined with group_operator)
+  repeated ConditionGroup groups = 6;
+
+  // How to combine groups (default: OR - any group matching triggers the rule)
+  LogicalOperator group_operator = 7;
+
+  // Gradual rollout percentage (0-100). When set, only this percentage of
+  // users (determined by consistent hashing on targetingKey) will match.
+  uint32 rollout_percentage = 8;
+
+  // Optional time window and recurrence for this rule.
+  RuleSchedule schedule = 9;
+
+  // Distinguishes an explicit 0% rollout from an omitted rollout while
+  // preserving field 8's original cardinality for existing clients.
+  bool rollout_percentage_set = 10;
+}
+
+message RuleSchedule {
+  string start_date = 1;
+  string end_date = 2;
+  ScheduleRecurrence recurrence = 3;
+}
+
+message ScheduleRecurrence {
+  string type = 1;
+  repeated int32 days_of_week = 2;
+  string start_time = 3;
+  string end_time = 4;
+}
+
+// Variant definition for percentage-based rollouts
+message Variant {
+  // Variant name/identifier
+  string name = 1;
+
+  // Value for this variant
+  Value value = 2;
+
+  // Weight for percentage-based selection (0-100)
+  uint32 weight = 3;
+}
+
+message Override {
+  string name = 1;
+  repeated string identifiers = 2;
+  Value value = 3;
+  int32 priority = 4;
+}
+
+message Prerequisite {
+  string flag_key = 1;
+  Value expected_value = 2;
+}
+
+// Complete feature flag definition
+message Flag {
+  // Unique flag key
+  string key = 1;
+
+  // Human-readable name
+  string name = 2;
+
+  // Optional description
+  string description = 3;
+
+  // Flag value type
+  FlagType type = 4;
+
+  // Whether the flag is enabled
+  bool enabled = 5;
+
+  // Default value when no rules match
+  Value default_value = 6;
+
+  // Project this flag belongs to
+  string project_id = 7;
+
+  // Service this flag belongs to
+  string service_id = 8;
+
+  // Environment (development, staging, production)
+  Environment environment = 9;
+
+  // Tags for organization
+  repeated string tags = 10;
+
+  // Targeting rules evaluated in order
+  repeated TargetingRule targeting_rules = 11;
+
+  // Variants for percentage-based rollouts
+  repeated Variant variants = 12;
+
+  // Timestamps
+  string created_at = 13;
+  string updated_at = 14;
+
+  // User IDs for audit
+  string created_by = 15;
+  string updated_by = 16;
+
+  // Version for optimistic locking
+  uint64 version = 17;
+
+  // Identity-specific value overrides.
+  repeated Override overrides = 18;
+
+  // Flag dependencies required by local evaluators.
+  repeated Prerequisite prerequisites = 19;
+}
+
+// Collection of flags for bulk operations
+message FlagConfiguration {
+  // Map of flag key to flag definition
+  map<string, Flag> flags = 1;
+
+  // Configuration version
+  string version = 2;
+
+  // When this configuration was generated
+  string generated_at = 3;
+
+  // Service ID for scoped configurations
+  string service_id = 4;
+
+  // Project ID for scoped configurations
+  string project_id = 5;
+}
+
+// Service definition
+message Service {
+  string id = 1;
+  string project_id = 2;
+  string name = 3;
+  string description = 4;
+  repeated string tags = 5;
+  string created_at = 6;
+  string updated_at = 7;
+  string created_by = 8;
+}
+
+// Project definition
+message Project {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string slug = 4;
+  string created_at = 5;
+  string updated_at = 6;
+  string created_by = 7;
+}

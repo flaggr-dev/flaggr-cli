@@ -1,0 +1,37 @@
+name: Release
+
+# Pushing a v* tag (for example v0.5.0) builds flaggr with GoReleaser and
+# publishes a GitHub release: archives for macOS, Linux and Windows (amd64 and
+# arm64) and checksums.txt, which install.sh checks downloads against.
+on:
+  push:
+    tags:
+      - "v*"
+
+# Creating the release and uploading its assets needs write access.
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # GoReleaser reads earlier tags.
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # Pinned to a commit (Dependabot proposes updates).
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
