@@ -27,7 +27,7 @@ curl -fsSLO https://github.com/flaggr-dev/flaggr-cli/releases/download/v0.5.0/fl
 curl -fsSLO https://github.com/flaggr-dev/flaggr-cli/releases/download/v0.5.0/checksums.txt
 shasum -a 256 --check --ignore-missing checksums.txt   # on Linux: sha256sum --check --ignore-missing checksums.txt
 tar -xzf flaggr_0.5.0_darwin_arm64.tar.gz flaggr
-sudo mv flaggr /usr/local/bin/
+sudo install -m 0755 flaggr /usr/local/bin/flaggr
 ```
 
 ### With Go
