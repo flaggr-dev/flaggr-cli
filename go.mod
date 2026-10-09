@@ -7,7 +7,7 @@ toolchain go1.27.2
 require (
 	connectrpc.com/connect v1.18.1
 	github.com/spf13/cobra v1.8.1
-	google.golang.org/protobuf v1.36.5
+	google.golang.org/protobuf v1.36.12
 )
 
 require (
