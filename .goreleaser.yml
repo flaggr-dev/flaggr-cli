@@ -6,6 +6,12 @@ version: 2
 
 project_name: flaggr
 
+before:
+  hooks:
+    # Every archive ships THIRD_PARTY_NOTICES: refuse to release while it is
+    # out of date (run `make notices` and commit the result).
+    - sh -c './scripts/third-party-notices.sh | diff -u THIRD_PARTY_NOTICES -'
+
 builds:
   - main: ./cmd/flaggr
     binary: flaggr

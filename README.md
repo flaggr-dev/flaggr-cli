@@ -132,7 +132,7 @@ The only difference from buf's output is the protoc version in each file's heade
 
 ### Third-party notices
 
-`THIRD_PARTY_NOTICES` holds the licenses of Go and of the modules compiled into `flaggr`, and every release archive ships it. After changing dependencies, regenerate it with `make notices` (`scripts/third-party-notices.sh`): CI fails while it's out of date.
+`THIRD_PARTY_NOTICES` holds the licenses of Go and of the modules compiled into `flaggr`, and every release archive ships it. After changing dependencies, regenerate it with `make notices` (`scripts/third-party-notices.sh`): while it's out of date, CI fails and GoReleaser won't release.
 
 ### Releases
 
