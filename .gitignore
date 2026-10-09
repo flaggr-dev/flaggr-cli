@@ -2,6 +2,7 @@
 /flaggr
 /flaggr.exe
 /dist/
+/THIRD_PARTY_NOTICES.tmp
 
 # Test binaries and coverage output
 *.test

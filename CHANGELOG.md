@@ -21,4 +21,5 @@ NOTES:
 
 * Browser login needs a Flaggr server from release 0.5.0 or later; with an older self-hosted server, use `flaggr login --token`. CLI releases before 0.5.0 can't log in through the browser to flaggr.dev: update, or use `flaggr login --token`.
 * Earlier browser logins passed their token through a URL: consider revoking old "CLI login (date)" tokens.
+* Release archives include `THIRD_PARTY_NOTICES`, the licenses of Go and of the modules compiled into `flaggr`.
 * `flaggr login` → **One project** creates a read & write project API token, so `flaggr flags delete` gets 403 with it. Choose **All my projects** (a personal access token), or pass a token with the Delete permission to `flaggr login --token`.

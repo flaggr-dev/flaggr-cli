@@ -130,6 +130,10 @@ protoc -I proto \
 
 The only difference from buf's output is the protoc version in each file's header.
 
+### Third-party notices
+
+`THIRD_PARTY_NOTICES` holds the licenses of Go and of the modules compiled into `flaggr`, and every release archive ships it. After changing dependencies, regenerate it with `make notices` (`scripts/third-party-notices.sh`): CI fails while it's out of date.
+
 ### Releases
 
 Pushing a `v*` tag runs [GoReleaser](https://goreleaser.com) (`.github/workflows/release.yml`), which builds the archives and `checksums.txt` and publishes them as a GitHub release; it stamps the version and commit that `flaggr --version` prints. `make snapshot` (`goreleaser release --snapshot --clean`) builds the same archives in `dist/` without publishing anything.
@@ -140,4 +144,4 @@ Please report vulnerabilities privately: see [SECURITY.md](SECURITY.md).
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). The binaries also contain Go's standard library and other Go modules, under their own licenses: see [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES).

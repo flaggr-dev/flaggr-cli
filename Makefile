@@ -27,8 +27,14 @@ vuln:
 generate:
 	buf generate
 
+# Writes THIRD_PARTY_NOTICES, the licenses of Go and of the modules compiled
+# into flaggr, which every release archive ships. Run it after changing
+# dependencies: CI fails while the committed file is out of date.
+notices:
+	./scripts/third-party-notices.sh >THIRD_PARTY_NOTICES.tmp && mv THIRD_PARTY_NOTICES.tmp THIRD_PARTY_NOTICES || { rm -f THIRD_PARTY_NOTICES.tmp; exit 1; }
+
 # Builds the release archives in dist/ without publishing anything.
 snapshot:
 	goreleaser release --snapshot --clean
 
-.PHONY: default build fmt vet test vuln generate snapshot
+.PHONY: default build fmt vet test vuln generate notices snapshot

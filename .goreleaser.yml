@@ -38,6 +38,13 @@ archives:
       - goos: windows
         formats:
           - zip
+    # Next to the binary. THIRD_PARTY_NOTICES has the licenses of Go and of
+    # the modules compiled into flaggr (make notices).
+    files:
+      - LICENSE
+      - README.md
+      - CHANGELOG.md
+      - THIRD_PARTY_NOTICES
 
 checksum:
   name_template: checksums.txt

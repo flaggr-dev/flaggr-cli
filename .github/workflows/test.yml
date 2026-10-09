@@ -47,8 +47,18 @@ jobs:
       - name: Unit tests
         run: go test -race -count=1 -cover ./...
 
-      - name: install.sh is POSIX sh
-        run: shellcheck --shell=sh install.sh
+      - name: The shell scripts are POSIX sh
+        run: shellcheck --shell=sh install.sh scripts/third-party-notices.sh
+
+      # The release archives ship THIRD_PARTY_NOTICES: the licenses of Go and
+      # of every module compiled into flaggr.
+      - name: THIRD_PARTY_NOTICES is up to date
+        run: |
+          make notices
+          git diff --exit-code -- THIRD_PARTY_NOTICES || {
+            echo "THIRD_PARTY_NOTICES is out of date: run 'make notices' and commit the result."
+            exit 1
+          }
 
   vulncheck:
     name: Known vulnerabilities
