@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.0 (Unreleased)
+## 0.5.0 (October 10, 2026)
 
 First public release, from `github.com/flaggr-dev/flaggr-cli`. Earlier versions were built in Flaggr's private repository and were available only on request.
 
