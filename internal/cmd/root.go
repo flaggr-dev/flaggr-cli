@@ -58,6 +58,7 @@ func NewRootCmd() *cobra.Command {
 		newAuditCmd(),
 		newExportCmd(),
 		newCrashReportsCmd(),
+		newSourceMapsCmd(),
 	)
 
 	return root

@@ -92,6 +92,7 @@ flaggr login --token fgp_your_personal_access_token   # or a project API token (
 | `flaggr audit log --project <id>` | The project's audit log, with diffs |
 | `flaggr audit history --key <key> --service <id>` | A flag's version history |
 | `flaggr export --project <id>` | A project's configuration as JSON, to stdout or `--output <file>` |
+| `flaggr sourcemaps upload <dir> --release <r> --url-prefix <path>` | Upload source maps, so the Issues page shows minified stack traces as your source (also `sourcemaps list` and `sourcemaps delete`) |
 | `flaggr crash-reports [on\|off\|status]` | Send the CLI's crashes to the Flaggr team (off by default) |
 
 Every command takes `--json` for JSON output. `flaggr <command> --help` lists a command's flags.
@@ -106,6 +107,17 @@ Every command takes `--json` for JSON output. `flaggr <command> --help` lists a 
 | `FLAGGR_API_TOKEN` | The saved token | The token every command sends |
 | `FLAGGR_EVAL_URL` | `https://api.flaggr.dev` with flaggr.dev, otherwise the API URL | Where `flaggr eval` sends evaluations |
 | `FLAGGR_CRASH_REPORTS` | The saved setting (off) | `1` or `0` turns crash reports on or off |
+
+## Source maps
+
+Upload the source maps of each release you deploy, under the release your app reports. Flaggr then shows the minified frames on the Issues page as the original file, line and source:
+
+```sh
+# Next.js: the maps of .next/static, served under /_next/static
+flaggr sourcemaps upload .next/static --url-prefix /_next/static --release "$GIT_SHA" --project <id>
+```
+
+Each map is filed under the path its minified file has in stack traces: `--url-prefix` plus the map's path in the directory, without `.map`. Run `--dry-run` to see those paths without uploading anything. Maps are gzipped before they're sent, and each must be under 64 MiB. A project keeps the maps of its last 20 releases. Your build must emit source maps; for Next.js that means `productionBrowserSourceMaps: true`. You don't have to serve them publicly.
 
 ## Crash reports
 

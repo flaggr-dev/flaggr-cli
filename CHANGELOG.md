@@ -4,6 +4,7 @@
 
 FEATURES:
 
+* `flaggr sourcemaps upload|list|delete`: upload a release's source maps (`--release`, `--url-prefix`, `--dry-run`), gzipped and four at a time. Flaggr's Issues page then shows minified stack frames as your original source.
 * Opt-in crash reports: `flaggr crash-reports on|off|status` (or `FLAGGR_CRASH_REPORTS=1|0`). When they're on, a panic is reported to the Flaggr team with its message, stack, the CLI's version, the subcommand name and the OS, architecture and Go version. The report never includes the token, arguments or output. `DO_NOT_TRACK=1` and CI environments keep reports off. The panic still prints and exits as before. Reports use the Go SDK's new `errorreport` package.
 
 ## 0.5.0 (October 10, 2026)
