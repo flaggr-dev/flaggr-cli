@@ -32,7 +32,7 @@ sudo install -m 0755 flaggr /usr/local/bin/flaggr
 
 ### With Go
 
-With Go 1.26 or later:
+With Go 1.27 or later:
 
 ```sh
 go install github.com/flaggr-dev/flaggr-cli/cmd/flaggr@latest
