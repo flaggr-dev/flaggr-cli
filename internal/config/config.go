@@ -14,6 +14,9 @@ type Config struct {
 	APIToken         string `json:"api_token"`
 	DefaultProjectID string `json:"default_project_id,omitempty"`
 	DefaultServiceID string `json:"default_service_id,omitempty"`
+	// CrashReports is whether the CLI sends its crashes to the Flaggr team
+	// (flaggr crash-reports on|off). Unset means off.
+	CrashReports *bool `json:"crash_reports,omitempty"`
 }
 
 func configDir() string {

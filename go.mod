@@ -11,6 +11,7 @@ require (
 )
 
 require (
+	github.com/flaggr-dev/flaggr-go v0.1.2-0.20261017080633-af804774d76e
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 )

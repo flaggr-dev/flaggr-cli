@@ -92,6 +92,7 @@ flaggr login --token fgp_your_personal_access_token   # or a project API token (
 | `flaggr audit log --project <id>` | The project's audit log, with diffs |
 | `flaggr audit history --key <key> --service <id>` | A flag's version history |
 | `flaggr export --project <id>` | A project's configuration as JSON, to stdout or `--output <file>` |
+| `flaggr crash-reports [on\|off\|status]` | Send the CLI's crashes to the Flaggr team (off by default) |
 
 Every command takes `--json` for JSON output. `flaggr <command> --help` lists a command's flags.
 
@@ -104,6 +105,22 @@ Every command takes `--json` for JSON output. `flaggr <command> --help` lists a 
 | `FLAGGR_API_URL` | `https://flaggr.dev` | The Flaggr API. For a self-hosted Flaggr, `flaggr login --url https://flaggr.example.com` saves it instead. |
 | `FLAGGR_API_TOKEN` | The saved token | The token every command sends |
 | `FLAGGR_EVAL_URL` | `https://api.flaggr.dev` with flaggr.dev, otherwise the API URL | Where `flaggr eval` sends evaluations |
+| `FLAGGR_CRASH_REPORTS` | The saved setting (off) | `1` or `0` turns crash reports on or off |
+
+## Crash reports
+
+Crash reports are off unless you turn them on with `flaggr crash-reports on` or `FLAGGR_CRASH_REPORTS=1`. `DO_NOT_TRACK=1` and CI environments (`CI` set) always keep them off.
+
+When they're on and the CLI crashes (a panic), a report goes to the Flaggr team at `https://flaggr.dev/api/ingest/cli-crashes`. The report contains:
+
+- the panic's message and stack,
+- the CLI's version,
+- the subcommand that ran, such as `flags list`, never its arguments or flags,
+- your OS, architecture and Go version.
+
+It never contains your token, URLs, flag keys or command output. The endpoint takes no credential and stores reports only in Flaggr's own project. It removes tokens and email addresses from the message and stack.
+
+Errors a command returns, such as a rejected token or a network failure, aren't crashes and are never reported. When reports are off, a crash prints how to report it instead.
 
 ## Development
 
