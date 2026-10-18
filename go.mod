@@ -1,11 +1,12 @@
 module github.com/flaggr-dev/flaggr-cli
 
-go 1.26.0
+go 1.27.0
 
 toolchain go1.27.2
 
 require (
 	connectrpc.com/connect v1.21.0
+	github.com/flaggr-dev/flaggr-go v0.2.0
 	github.com/spf13/cobra v1.10.2
 	google.golang.org/protobuf v1.36.12
 )

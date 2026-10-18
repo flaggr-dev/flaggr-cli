@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"os"
+	"strings"
 
 	"github.com/flaggr-dev/flaggr-cli/internal/api"
 	"github.com/flaggr-dev/flaggr-cli/internal/config"
+	"github.com/flaggr-dev/flaggr-cli/internal/crash"
 	"github.com/spf13/cobra"
 )
 
@@ -55,6 +57,8 @@ func NewRootCmd() *cobra.Command {
 		newHealthCmd(),
 		newAuditCmd(),
 		newExportCmd(),
+		newCrashReportsCmd(),
+		newSourceMapsCmd(),
 	)
 
 	return root
@@ -69,7 +73,21 @@ func commitKnown(commit string) bool {
 func Execute(version, commit string) {
 	CLIVersion = version
 	CLICommit = commit
-	if err := NewRootCmd().Execute(); err != nil {
+	root := NewRootCmd()
+	// A panic is reported to the Flaggr team when the user opted in, then
+	// re-panics (internal/crash).
+	defer crash.Guard{Version: version, Command: func() string { return commandPath(root, os.Args[1:]) }}.Recover()
+	if err := root.Execute(); err != nil {
 		os.Exit(1)
 	}
+}
+
+// commandPath is the subcommand args select, such as "flags list": the
+// command names only, never their arguments or flags.
+func commandPath(root *cobra.Command, args []string) string {
+	found, _, err := root.Find(args)
+	if err != nil || found == nil || found == root {
+		return ""
+	}
+	return strings.TrimPrefix(found.CommandPath(), root.Name()+" ")
 }
